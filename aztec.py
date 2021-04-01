@@ -91,10 +91,13 @@ def solve_aztec_puzzle(puzzle, pieces):
                         placements.append((piece_idx, placed_piece))
             rotated_piece = piece_rot90(rotated_piece)
 
+    print("A!")
+
     # Construct one-hot constraints requiring only one piece per puzzle location.
     one_hots = []
     for x in range(puzzle.shape[1]):
         for y in range(puzzle.shape[0]):
+            print(x,y)
             one_hot = []
             for place_idx, placement in enumerate(placements):
                 piece = placement[1]
@@ -102,6 +105,8 @@ def solve_aztec_puzzle(puzzle, pieces):
                     one_hot.append(place_idx)
             if len(one_hot) > 0:
                 one_hots.append(one_hot)
+
+    print("B!")
 
     # Construct one-hot constraints requiring each piece only be used once.
     piece_hash = {}
@@ -118,11 +123,13 @@ def solve_aztec_puzzle(puzzle, pieces):
     for oh in range(len(one_hots)):
         one_hots[oh] = [term+1 for term in one_hots[oh]]
 
+    print("C!")
     # Solve!
     solver = Glucose3()
     for clauses in one_hot_combiner([one_hot_detector(oh) for oh in one_hots]):
         solver.add_clause(clauses)
 
+    print("HERE WE GO!")
     solutions = []
     if solver.solve():
         print("Solution Found!")
@@ -169,7 +176,8 @@ if __name__ == "__main__":
     pieces = [np.array(p) for p in puzzle_dict["pieces"]]
 
     # I use this to debug puzzles.
-    #for p in pieces:
+    #for i,p in enumerate(pieces):
+    #    print(i,len(p))
     #    plot_piece(p)
 
     print("Puzzle Dimensions: {}x{}".format(puzzle.shape[0], puzzle.shape[1]))
