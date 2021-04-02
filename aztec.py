@@ -7,7 +7,7 @@ from pysat.solvers import Glucose3
 import matplotlib.pyplot as plt
 from matplotlib import cm
 
-AUXVARS_LOWER_LIMIT = 10000
+AUXVARS_LOWER_LIMIT = 1000000
 AUXVARS_INDEX = AUXVARS_LOWER_LIMIT
 
 def at_least_one(inputs):
@@ -150,7 +150,7 @@ def solve_aztec_puzzle(puzzle, pieces):
     solutions = []
     if solver.solve():
         print("Solution Found!")
-        for model in solver.enum_models():
+        for m, model in enumerate(solver.enum_models()):
             model = np.array(model)
             model = model[model > 0]
             model = model[model < len(placements)]
