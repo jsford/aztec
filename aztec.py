@@ -81,7 +81,7 @@ def solve_aztec_puzzle(puzzle, pieces):
     print("Building placement table.")
 
     # Build the placement table.
-    placements = []
+    placements = [None]
     for piece_idx, piece in enumerate(pieces):
         rotated_piece = piece
         for rotation_idx in range(3):
@@ -100,10 +100,10 @@ def solve_aztec_puzzle(puzzle, pieces):
         for y in range(puzzle.shape[0]):
             print(x,y)
             one_hot = []
-            for place_idx, placement in enumerate(placements):
+            for place_idx, placement in enumerate(placements[1:]):
                 piece = placement[1]
                 if piece_covers(piece, [x,y]):
-                    one_hot.append(place_idx)
+                    one_hot.append(place_idx+1)
             if len(one_hot) > 0:
                 one_hots.append(one_hot)
 
@@ -111,18 +111,14 @@ def solve_aztec_puzzle(puzzle, pieces):
 
     # Construct one-hot constraints requiring each piece only be used once.
     piece_hash = {}
-    for place_idx, place in enumerate(placements):
+    for place_idx, place in enumerate(placements[1:]):
         piece_idx = place[0]
         if(piece_idx not in piece_hash):
             piece_hash[piece_idx] = []
-        piece_hash[piece_idx].append(place_idx)
+        piece_hash[piece_idx].append(place_idx+1)
 
     for piece_idx, one_hot in piece_hash.items():
         one_hots.append(one_hot)
-
-    # Terms must be greater than zero, so bias them up by one.
-    for oh in range(len(one_hots)):
-        one_hots[oh] = [term+1 for term in one_hots[oh]]
 
     print("Constructing the solver.")
 
@@ -153,9 +149,6 @@ def solve_aztec_puzzle(puzzle, pieces):
         for model in solver.enum_models():
             model = np.array(model)
             model = model[model > 0]
-            # Bias back down by one to use the terms 
-            # as an index into the placement table.
-            model -= 1
             solution_placements = [placements[i] for i in model]
             solutions.append(solution_placements)
     else:
