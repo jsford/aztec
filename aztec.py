@@ -7,38 +7,42 @@ from pysat.solvers import Glucose3
 import matplotlib.pyplot as plt
 from matplotlib import cm
 
+AUXVARS_LOWER_LIMIT = 10000
+AUXVARS_INDEX = AUXVARS_LOWER_LIMIT
 
-# The one_hot_detector function returns the CNF clauses describing a
-# one-hot detector with the given input variables.
-#
-# For example, one_hot_detector([1,2,3]) will return
-# [[-1,-2], [-1,-3], [-2, -3], [1,2,3]].
-#
-# Symbolically, this is equivalent to one_hot_detector([A, B, C]) returning
-#    (~A | ~B) & (~A | ~C) & (~B | ~C) & ( A | B | C )
-#
-# I find the DNF form of the one-hot detector to be much more intuitive.
-# This is the DNF equivalent.
-#    (~A&~B&~C&D) | (~A&~B&C&~D) | (~A&B&~C&~D) | (A&~B&~C&~D)
-def one_hot_detector(inputs):
+def at_least_one(inputs):
+    return [inputs]
+
+def at_most_one(inputs):
     clauses = []
     N = len(inputs)
     for i in range(0, N - 1):
         for j in range(i + 1, N):
             clauses.append([-inputs[i],-inputs[j]])
-    clauses.append(inputs)
     return clauses
 
+def at_most_one_sinz(inputs):
+    global AUXVARS_INDEX
 
-# This function takes in a list of one_hot_detector outputs,
-# concatenates their clauses, and returns the result.
-# This is equivalent to ANDing multiple one_hot_detectors.
-def one_hot_combiner(one_hots):
-    combination = []
-    for oh in one_hots:
-        combination.extend(oh)
-    return combination
+    N = len(inputs)
 
+    clauses = []
+    clauses.append([-inputs[0], AUXVARS_INDEX])
+    clauses.append([-inputs[N-1], -(AUXVARS_INDEX+N-2)])
+
+    for i in range(1,N-1):
+        clauses.append([-inputs[i], AUXVARS_INDEX+i])
+        clauses.append([-(AUXVARS_INDEX+i-1), AUXVARS_INDEX+i])
+        clauses.append([-inputs[i], -(AUXVARS_INDEX+i-1)])
+    AUXVARS_INDEX += 2*N
+
+    return clauses
+
+def one_hot_detector(inputs):
+    clauses = []
+    clauses.extend(at_least_one(inputs))
+    clauses.extend(at_most_one_sinz(inputs))
+    return clauses
 
 def load_aztec_file(filename):
     with open(filename, "r") as f:
@@ -149,8 +153,10 @@ def solve_aztec_puzzle(puzzle, pieces):
         for model in solver.enum_models():
             model = np.array(model)
             model = model[model > 0]
+            model = model[model < len(placements)]
             solution_placements = [placements[i] for i in model]
             solutions.append(solution_placements)
+            break
     else:
         print("Solution Not Found.")
         return []
@@ -163,11 +169,6 @@ def plot_solution(puzzle, solution):
         for pt in piece[1]:
             puzzle[puzzle.shape[0]-pt[1]-1, pt[0]] = piece_idx
     plt.imshow(puzzle, cmap=cm.inferno)
-    plt.show()
-
-def plot_piece(piece):
-    for pt in piece:
-        plt.scatter(pt[0], pt[1])
     plt.show()
 
 if __name__ == "__main__":
@@ -184,11 +185,6 @@ if __name__ == "__main__":
     # Extract the puzzle and pieces from the puzzle dict.
     puzzle = np.array(puzzle_dict["puzzle"])
     pieces = [np.array(p) for p in puzzle_dict["pieces"]]
-
-    # I use this to debug puzzles.
-    #for i,p in enumerate(pieces):
-    #    print(i,len(p))
-    #    plot_piece(p)
 
     print("Puzzle Dimensions: {}x{}".format(puzzle.shape[0], puzzle.shape[1]))
     print("Number of Pieces: {}".format(len(pieces)))
@@ -208,6 +204,7 @@ if __name__ == "__main__":
     # Solve the puzzle.
     print("Solving {}...".format(os.path.basename(filename)))
     solutions = solve_aztec_puzzle(puzzle, pieces)
+    print("MADE IT HERE")
     if len(solutions) > 0:
         print("FOUND {} SOLUTIONS!".format(len(solutions)))
         for solution in solutions:
