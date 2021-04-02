@@ -22,11 +22,10 @@ from matplotlib import cm
 #    (~A&~B&~C&D) | (~A&~B&C&~D) | (~A&B&~C&~D) | (A&~B&~C&~D)
 def one_hot_detector(inputs):
     clauses = []
-
     N = len(inputs)
     for i in range(0, N - 1):
         for j in range(i + 1, N):
-            clauses.append([-1 * inputs[i], -1 * inputs[j]])
+            clauses.append([-inputs[i],-inputs[j]])
     clauses.append(inputs)
     return clauses
 
@@ -79,11 +78,13 @@ def piece_covers(piece, xy):
 
 def solve_aztec_puzzle(puzzle, pieces):
 
+    print("Building placement table.")
+
     # Build the placement table.
     placements = []
     for piece_idx, piece in enumerate(pieces):
         rotated_piece = piece
-        for rotation_idx in range(4):
+        for rotation_idx in range(3):
             for x in range(puzzle.shape[1]):
                 for y in range(puzzle.shape[0]):
                     placed_piece = piece_translate(rotated_piece, [x,y])
@@ -91,7 +92,7 @@ def solve_aztec_puzzle(puzzle, pieces):
                         placements.append((piece_idx, placed_piece))
             rotated_piece = piece_rot90(rotated_piece)
 
-    print("A!")
+    print("Constructing puzzle square constraints.")
 
     # Construct one-hot constraints requiring only one piece per puzzle location.
     one_hots = []
@@ -106,7 +107,7 @@ def solve_aztec_puzzle(puzzle, pieces):
             if len(one_hot) > 0:
                 one_hots.append(one_hot)
 
-    print("B!")
+    print("Constructing puzzle piece constraints.")
 
     # Construct one-hot constraints requiring each piece only be used once.
     piece_hash = {}
@@ -123,13 +124,29 @@ def solve_aztec_puzzle(puzzle, pieces):
     for oh in range(len(one_hots)):
         one_hots[oh] = [term+1 for term in one_hots[oh]]
 
-    print("C!")
-    # Solve!
-    solver = Glucose3()
-    for clauses in one_hot_combiner([one_hot_detector(oh) for oh in one_hots]):
-        solver.add_clause(clauses)
+    print("Constructing the solver.")
 
-    print("HERE WE GO!")
+    solver = Glucose3()
+    seent = set()
+    num_terms = 0
+    duplicates = 0
+    for i,oh in enumerate(one_hots):
+        print("{}/{} {:0.3f}".format(i, len(one_hots), 100*i/len(one_hots)))
+        ohd = one_hot_detector(oh)
+        print(len(ohd))
+        for term in ohd:
+            num_terms += 1
+            term = tuple(term)
+            if term not in seent:
+                solver.add_clause(term)
+            else:
+                duplicates += 1
+            seent.add(term)
+        print("BEFORE: {} AFTER: {} REDUCTION: {:0.3f}".format(num_terms, num_terms-duplicates, num_terms/(1+num_terms-duplicates)))
+
+    print("Solving!")
+
+    # Solve!
     solutions = []
     if solver.solve():
         print("Solution Found!")
